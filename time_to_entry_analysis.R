@@ -47,6 +47,7 @@ MEPS_summary_weighted <- MEPS_summary_weighted %>%
 
 genericPIV_postGDUFA_id <- genericPIV_postGDUFA %>%
   distinct(index)
+
 MEPS_PIV <- MEPS_summary_weighted %>%
   inner_join(genericPIV_postGDUFA_id, by = "index") %>%
   dplyr::select(-(15:28)) %>%
@@ -90,12 +91,18 @@ genericPIV_MEPS <- genericPIV_postGDUFA %>%
 genericnoPIV_MEPS <- genericnoPIV_postGDUFA %>%
   inner_join(MEPS_noPIV_id)
 
-# generate one set of simulated time, for second entrants with PC
+# generate one set of simulated time, for second and third entrants with PC
 genericPIV_MEPS_2 <- genericPIV_MEPS %>%
   filter(order == 2)
 
+genericPIV_MEPS_3 <- genericPIV_MEPS %>%
+  filter(order == 3)
+
 h_PIV_2 <- h_PIV %>%
   filter(strata == "ncompetitor=1")
+
+h_PIV_3 <- h_PIV %>%
+  filter(strata == "ncompetitor=2")
 
 genericPIV_MEPS_2_predicted <- predict(model_PIV_PWPGT_post, genericPIV_MEPS_2, type="risk",se.fit=TRUE, reference = "strata")
 genericPIV_MEPS_2$predicted <- genericPIV_MEPS_2_predicted$fit
@@ -104,3 +111,36 @@ genericPIV_MEPS_2$predicted_h <- - (genericPIV_MEPS_2$predicted * log(genericPIV
 
 genericPIV_MEPS_2$predicted_t <- sapply(genericPIV_MEPS_2$predicted_h, get_time, data = h_PIV_1)
 
+genericPIV_MEPS_3_predicted <- predict(model_PIV_PWPGT_post, genericPIV_MEPS_3, type="risk",se.fit=TRUE, reference = "strata")
+genericPIV_MEPS_3$predicted <- genericPIV_MEPS_3_predicted$fit
+genericPIV_MEPS_3$runif <- runif(nrow(genericPIV_MEPS_3), min=0, max=1)
+genericPIV_MEPS_3$predicted_h <- - (genericPIV_MEPS_3$predicted * log(genericPIV_MEPS_3$runif))
+
+genericPIV_MEPS_3$predicted_t <- sapply(genericPIV_MEPS_3$predicted_h, get_time, data = h_PIV_1)
+
+genericPIV_MEPS_2 <- genericPIV_MEPS_2 %>%
+  dplyr::select(index, Appl_No, Product_No, Strength, order, gaptime, predicted_t)
+
+genericPIV_MEPS_3 <- genericPIV_MEPS_3 %>%
+  dplyr::select(index, Appl_No, Product_No, Strength, order, gaptime, predicted_t)
+
+genericPIV_MEPS_simulated <-genericPIV_MEPS_2 %>%
+  bind_rows(genericPIV_MEPS_3)
+
+genericPIV_MEPS$predicted_t <- genericPIV_MEPS$gaptime
+
+# update new gap time for second and third entrants only (with simulated)
+genericPIV_MEPS <- genericPIV_MEPS %>%
+  left_join(genericPIV_MEPS_simulated, by = c("index", "Appl_No", "Product_No", "Strength", "gaptime", "order")) %>%
+  distinct() %>%
+  mutate(simulated_t = ifelse(is.na(predicted_t), gaptime, predicted_t))
+
+# get simulated approval date and approval year
+genericPIV_MEPS <- genericPIV_MEPS %>% 
+  group_by(index) %>% 
+  mutate(simulated_t_total = cumsum(simulated_t),
+         simulated_approval_date = as.Date(exclusivity) + simulated_t,
+         simulated_approval_year = year(simulated_approval_date))
+
+genericPIV_MEPS_compare_ncompetitor <- genericPIV_MEPS %>% 
+  dplyr::select(approveyear, simulated_approval_year) 
