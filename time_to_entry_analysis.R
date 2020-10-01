@@ -6,7 +6,6 @@ load("genericPIV_postGDUFA.RData")
 load("genericnoPIV_postGDUFA.RData")
 load("MEPS_summary_weighted.Rdata")
 
-
 # With PC
 model_PIV_PWPGT_post <- coxph(Surv(genericPIV_postGDUFA$gaptime_start, genericPIV_postGDUFA$gaptime, entry2) ~ strata(ncompetitor) + route + AG + ETASU + guidance_before + indexyear + cluster(index), method = "breslow", data = genericPIV_postGDUFA)
 summary(model_PIV_PWPGT_post)
@@ -52,7 +51,8 @@ MEPS_PIV <- MEPS_summary_weighted %>%
   inner_join(genericPIV_postGDUFA_id, by = "index") %>%
   dplyr::select(-(15:28)) %>%
   filter(year > 2012) %>%
-  distinct()
+  distinct() %>%
+  ungroup()
 
 genericnoPIV_postGDUFA_id <- genericnoPIV_postGDUFA %>%
   distinct(index)
@@ -127,8 +127,6 @@ genericPIV_MEPS_3 <- genericPIV_MEPS_3 %>%
 genericPIV_MEPS_simulated <-genericPIV_MEPS_2 %>%
   bind_rows(genericPIV_MEPS_3)
 
-genericPIV_MEPS$predicted_t <- genericPIV_MEPS$gaptime
-
 # update new gap time for second and third entrants only (with simulated)
 genericPIV_MEPS <- genericPIV_MEPS %>%
   left_join(genericPIV_MEPS_simulated, by = c("index", "Appl_No", "Product_No", "Strength", "gaptime", "order")) %>%
@@ -144,3 +142,62 @@ genericPIV_MEPS <- genericPIV_MEPS %>%
 
 genericPIV_MEPS_compare_ncompetitor <- genericPIV_MEPS %>% 
   dplyr::select(approveyear, simulated_approval_year) 
+
+competitor <- rep(0, 11)
+
+index <- (genericPIV_MEPS %>%
+  distinct(index))$index
+  
+MEPS_PIV_simulated <- map_dfr(index, function(id){
+  year <- c(2012:2017)
+  competitor <- rep(0, 6)
+  
+  genericPIV_MEPS <- genericPIV_MEPS %>%
+    filter(index == id,
+           entry2 == 1)
+  
+  for (j in 2012:2017){
+    for (i in 1:nrow(genericPIV_MEPS)){
+      if(genericPIV_MEPS$simulated_approval_year[i] == j){
+        competitor[j-2011]= competitor[j-2011] + 1
+      }
+    }
+    if(j<2017){
+      competitor[(j-2012):6]=competitor[j-2011]
+    }
+  }
+  
+  output <- data.frame(year, competitor)
+  output <- output %>%
+    mutate(index = id) %>%
+    dplyr::select(index, year, competitor) %>%
+    rename(competitor_simulated = competitor) %>%
+    data.table()
+  
+  return(output)
+})
+
+MEPS_PIV_simulated <- MEPS_PIV_simulated %>%
+  filter(year > 2012) %>%
+  mutate(year = as.numeric(year),
+         competitor_simulated = competitor_simulated + 1) %>%
+  as_tibble()
+
+MEPS_PIV_simulated_v1 <- MEPS_PIV %>%
+  left_join(MEPS_PIV_simulated, by = c("index", "year"))
+
+# keep drugs when simulated result is available
+MEPS_PIV_simulated_v1 <- MEPS_PIV_simulated_v1 %>%
+  filter(!is.na(competitor_simulated)) %>%
+  mutate(competitor_diff = competitor_simulated - competitor)
+
+MEPS_PIV_simulated_v1 <- MEPS_PIV_simulated_v1 %>%
+  filter(!is.na(P_g) & !is.na(P_b)) %>% ## comment this if fill in previous years!!!
+  mutate(P_b_simulated = P_b * (1 + 0.01 * competitor_diff),
+         P_g_simulated = P_g * (1 - 0.08 * competitor_diff),
+         E = P_b * N_b + P_g * N_g,
+         E_simulated = P_b_simulated * N_b + P_g_simulated * N_g)
+
+E_diff <- sum(MEPS_PIV_simulated_v1$E) - sum(MEPS_PIV_simulated_v1$E_simulated)
+
+E_ratio <- E_diff/sum(MEPS_PIV_simulated_v1$E)
