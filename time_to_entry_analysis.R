@@ -40,9 +40,23 @@ MEPS_summary_weighted[is.nan(MEPS_summary_weighted )] <- NA
 MEPS_summary_weighted$N_b[MEPS_summary_weighted$N_b == 0] <- NA
 MEPS_summary_weighted$N_g[MEPS_summary_weighted$N_g == 0] <- NA
 
+#interpolate:
 MEPS_summary_weighted <- MEPS_summary_weighted %>%
   group_by(index) %>%
-  fill(P_b, P_g, N_b, N_g)
+  mutate(P_b = na.approx(P_b, na.rm=FALSE),
+         P_g = na.approx(P_g, na.rm=FALSE),
+         N_b = na.approx(N_b, na.rm=FALSE),
+         N_g = na.approx(N_g, na.rm=FALSE))    
+
+#add branded price from SSR:
+load("NDC_branded_SSR.Rdata")
+
+MEPS_summary_weighted <- MEPS_summary_weighted %>%
+  left_join(NDC_branded_SSR_long, by = c("index", "year"))
+
+#MEPS_summary_weighted <- MEPS_summary_weighted %>%
+#  group_by(index) %>%
+#  fill(P_b, P_g, N_b, N_g)
 
 genericPIV_postGDUFA_id <- genericPIV_postGDUFA %>%
   distinct(index)

@@ -1,24 +1,25 @@
 
+# Average # of competitors by t_LOE:
+MEPS_PIV_mean <- MEPS_PIV %>%
+  filter(year > 2012) %>%
+  group_by(t_LOE) %>%
+  summarise(mean_competitor = mean(competitor),
+            mean_P_b = mean(P_b, na.rm = T),
+            mean_P_g = mean(P_g, na.rm = T)) %>%
+  mutate(simulation = 0)
+
+
 # With PC only
 # Varying increase in hazard
 model_PIV_PWPGT_post <- coxph(Surv(genericPIV_postGDUFA$gaptime_start, genericPIV_postGDUFA$gaptime, entry2) ~ strata(ncompetitor) + route + AG + ETASU + guidance_before + indexyear + cluster(index), method = "breslow", data = genericPIV_postGDUFA)
 summary(model_PIV_PWPGT_post)
 
-hazard_sim <- seq(1, 5, 0.1)
-#hazard_sim <- seq(1, 2, 1)
-E_diff_mean <- rep(NA, length(hazard_sim))
-E_diff_025 <- rep(NA, length(hazard_sim))
-E_diff_975 <- rep(NA, length(hazard_sim))
-E_ratio_mean <- rep(NA, length(hazard_sim))
-E_ratio_025 <- rep(NA, length(hazard_sim))
-E_ratio_975 <- rep(NA, length(hazard_sim))
+#hazard_sim <- seq(2, 2, 1)
+hazard_sim <- 1
 
-
-for (j in 1:length(hazard_sim)){
-  
   h_PIV <- basehaz(model_PIV_PWPGT_post, centered = T)
   h_PIV <- h_PIV %>% 
-    mutate(h2 = hazard*hazard_sim[j])
+    mutate(h2 = hazard*hazard_sim)
   
   h_PIV_2 <- h_PIV %>%
     filter(strata == "ncompetitor=1")
@@ -26,10 +27,51 @@ for (j in 1:length(hazard_sim)){
   h_PIV_3 <- h_PIV %>%
     filter(strata == "ncompetitor=2")
   
-  E <- rep(NA, 1000)
-  E_simulated <- rep(NA, 1000)
+  n_simulation = 1
   
-  for (i in 1:1000){
+  E <- rep(NA, n_simulation)
+  E_simulated <- rep(NA, n_simulation)
+  
+  MEPS_PIV_2 <- MEPS_PIV %>%
+    filter(competitor >= 2,
+           !is.na(P_g),
+           !is.na(P_b))
+  
+  MEPS_PIV_id <- MEPS_PIV_2 %>%
+    distinct(index)
+  
+  genericPIV_MEPS <- genericPIV_postGDUFA %>%
+    inner_join(MEPS_PIV_id, by = "index")
+  
+  genericPIV_MEPS_2 <- genericPIV_MEPS %>%
+    filter(ncompetitor == 1)
+  
+  genericPIV_MEPS_3 <- genericPIV_MEPS %>%
+    filter(ncompetitor == 2)
+  
+  genericPIV_MEPS_2_predicted <- predict(model_PIV_PWPGT_post, genericPIV_MEPS_2, type="risk",se.fit=TRUE, reference = "strata")
+  genericPIV_MEPS_2$predicted <- genericPIV_MEPS_2_predicted$fit
+  genericPIV_MEPS_2$runif <- runif(nrow(genericPIV_MEPS_2), min=0, max=1)
+  genericPIV_MEPS_2$predicted_h <- - (genericPIV_MEPS_2$predicted * log(genericPIV_MEPS_2$runif))
+  
+  genericPIV_MEPS_2$predicted_t <- sapply(genericPIV_MEPS_2$predicted_h, get_time, data = h_PIV_2)
+  
+  summary(genericPIV_MEPS_2$predicted_t)
+  
+  summary(genericPIV_MEPS_2$gaptime)
+  
+  genericPIV_MEPS_3_predicted <- predict(model_PIV_PWPGT_post, genericPIV_MEPS_3, type="risk",se.fit=TRUE, reference = "strata")
+  genericPIV_MEPS_3$predicted <- genericPIV_MEPS_3_predicted$fit
+  genericPIV_MEPS_3$runif <- runif(nrow(genericPIV_MEPS_3), min=0, max=1)
+  genericPIV_MEPS_3$predicted_h <- - (genericPIV_MEPS_3$predicted * log(genericPIV_MEPS_3$runif))
+  
+  genericPIV_MEPS_3$predicted_t <- sapply(genericPIV_MEPS_3$predicted_h, get_time, data = h_PIV_3)
+  
+  summary(genericPIV_MEPS_3$predicted_t)
+  
+  summary(genericPIV_MEPS_3$gaptime)
+  
+  for (i in 1:n_simulation){
     MEPS_PIV_2 <- MEPS_PIV %>%
       filter(competitor >= 2,
              !is.na(P_g),
@@ -42,10 +84,10 @@ for (j in 1:length(hazard_sim)){
       inner_join(MEPS_PIV_id, by = "index")
     
     genericPIV_MEPS_2 <- genericPIV_MEPS %>%
-      filter(order == 2)
+      filter(ncompetitor == 1)
     
     genericPIV_MEPS_3 <- genericPIV_MEPS %>%
-      filter(order == 3)
+      filter(ncompetitor == 2)
     
     genericPIV_MEPS_2_predicted <- predict(model_PIV_PWPGT_post, genericPIV_MEPS_2, type="risk",se.fit=TRUE, reference = "strata")
     genericPIV_MEPS_2$predicted <- genericPIV_MEPS_2_predicted$fit
@@ -53,6 +95,8 @@ for (j in 1:length(hazard_sim)){
     genericPIV_MEPS_2$predicted_h <- - (genericPIV_MEPS_2$predicted * log(genericPIV_MEPS_2$runif))
     
     genericPIV_MEPS_2$predicted_t <- sapply(genericPIV_MEPS_2$predicted_h, get_time, data = h_PIV_2)
+    
+  
     
     genericPIV_MEPS_3_predicted <- predict(model_PIV_PWPGT_post, genericPIV_MEPS_3, type="risk",se.fit=TRUE, reference = "strata")
     genericPIV_MEPS_3$predicted <- genericPIV_MEPS_3_predicted$fit
@@ -144,21 +188,40 @@ for (j in 1:length(hazard_sim)){
     E[i] = sum(MEPS_PIV_simulated_v1$E)
     E_simulated[i] = sum(MEPS_PIV_simulated_v1$E_simulated)
     
+    simulation_mean <- MEPS_PIV_simulated_v1 %>%
+      group_by(t_LOE) %>%
+      summarise(mean_competitor = mean(competitor_simulated),
+                mean_P_b = mean(P_b_simulated, na.rm = T),
+                mean_P_g = mean(P_g_simulated, na.rm = T)) %>%
+      mutate(simulation = i)
+    
+    MEPS_PIV_mean <- MEPS_PIV_mean %>%
+      rbind(simulation_mean)
+    
   }
   
-  E_df <- cbind(data.frame(E), data.frame(E_simulated))
-  E_df <- E_df %>%
-    mutate(E_diff = E - E_simulated,
-           E_ratio = E_diff/E)
-  
-  E_diff_mean[j] <- mean(E_df$E_diff)
-  E_diff_025[j] <- unname(quantile(E_df$E_diff, 0.025))
-  E_diff_975[j] <- unname(quantile(E_df$E_diff, 0.975))
-  
-  E_ratio_mean[j] <- mean(E_df$E_ratio)
-  E_ratio_025[j] <- unname(quantile(E_df$E_ratio, 0.025))
-  E_ratio_975[j] <- unname(quantile(E_df$E_ratio, 0.975))
-}
 
+MEPS_PIV_mean_simulated <- MEPS_PIV_mean %>%
+  filter(simulation > 0) %>%
+  group_by(t_LOE) %>%
+  summarise(mean_competitor = mean(mean_competitor),
+            mean_P_b = mean(mean_P_b),
+            mean_P_g = mean(mean_P_g))
 
+MEPS_PIV_mean_original <- MEPS_PIV_mean %>%
+  filter(simulation == 0)
 
+#inner join for comparison
+MEPS_PIV_mean_comparison <- MEPS_PIV_mean_original %>%
+  dplyr::select(-simulation) %>%
+  rename(mean_P_b_original = mean_P_b,
+         mean_P_g_original = mean_P_g,
+         mean_competitor_original = mean_competitor) %>%
+  inner_join(MEPS_PIV_mean_simulated, by = "t_LOE") %>%
+  rename(mean_P_b_simulated = mean_P_b,
+         mean_P_g_simulated = mean_P_g,
+         mean_competitor_simulated = mean_competitor) %>%
+  dplyr::select(t_LOE, mean_competitor_original, mean_competitor_simulated, mean_P_b_original, mean_P_b_simulated, mean_P_g_original, mean_P_g_simulated)
+
+#rerun for different hazard
+#mean for time to entry for different orders make more sense 
