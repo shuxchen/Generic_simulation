@@ -15,7 +15,8 @@ model_PIV_PWPGT_post <- coxph(Surv(genericPIV_postGDUFA$gaptime_start, genericPI
 summary(model_PIV_PWPGT_post)
 
 #hazard_sim <- seq(2, 2, 1)
-hazard_sim <- 1
+hazard_sim <- 5
+n_simulation <- 1000
 
   h_PIV <- basehaz(model_PIV_PWPGT_post, centered = T)
   h_PIV <- h_PIV %>% 
@@ -26,8 +27,6 @@ hazard_sim <- 1
   
   h_PIV_3 <- h_PIV %>%
     filter(strata == "ncompetitor=2")
-  
-  n_simulation = 1
   
   E <- rep(NA, n_simulation)
   E_simulated <- rep(NA, n_simulation)
@@ -67,9 +66,32 @@ hazard_sim <- 1
   
   genericPIV_MEPS_3$predicted_t <- sapply(genericPIV_MEPS_3$predicted_h, get_time, data = h_PIV_3)
   
+  genericPIV_MEPS %>%
+    group_by(ncompetitor) %>%
+    summarise(mean = mean(gaptime),
+              median = median(gaptime),
+              min = min(gaptime),
+              max = max(gaptime),
+              n = n())
+  
+  genericPIV_postGDUFA %>%
+    group_by(ncompetitor) %>%
+    summarise(mean = mean(gaptime),
+              median = median(gaptime),
+              max = max(gaptime),
+              n = n())
+  
   summary(genericPIV_MEPS_3$predicted_t)
   
   summary(genericPIV_MEPS_3$gaptime)
+  
+  genericPIV_MEPS_2_simulated <- genericPIV_MEPS_2 %>%
+    dplyr::select(index, Appl_No, Product_No, Strength, order, gaptime) %>%
+    mutate(sim = 0)
+  
+  genericPIV_MEPS_3_simulated <- genericPIV_MEPS_3 %>%
+    dplyr::select(index, Appl_No, Product_No, Strength, order, gaptime) %>%
+    mutate(sim = 0)
   
   for (i in 1:n_simulation){
     MEPS_PIV_2 <- MEPS_PIV %>%
@@ -113,6 +135,18 @@ hazard_sim <- 1
     
     genericPIV_MEPS_simulated <-genericPIV_MEPS_2 %>%
       bind_rows(genericPIV_MEPS_3)
+    
+    genericPIV_MEPS_2_simulated <- genericPIV_MEPS_2 %>%
+      dplyr::select(-gaptime) %>%
+      rename(gaptime = predicted_t) %>%
+      mutate(sim = i) %>%
+      bind_rows(genericPIV_MEPS_2_simulated)
+    
+    genericPIV_MEPS_3_simulated <- genericPIV_MEPS_3 %>%
+      dplyr::select(-gaptime) %>%
+      rename(gaptime = predicted_t) %>%
+      mutate(sim = i) %>%
+      bind_rows(genericPIV_MEPS_3_simulated)
     
     # update new gap time for second and third entrants only (with simulated)
     genericPIV_MEPS <- genericPIV_MEPS %>%
@@ -199,7 +233,28 @@ hazard_sim <- 1
       rbind(simulation_mean)
     
   }
-  
+
+genericPIV_MEPS_2_simulated %>%
+    filter(sim != 0) %>%
+    ungroup() %>%
+    summarise(mean_gaptime = mean(gaptime),
+              median_gaptime = median(gaptime)) %>%
+    summarise(mean = mean(mean_gaptime),
+              median = median(median_gaptime))
+
+genericPIV_MEPS_3_simulated %>%
+  filter(sim != 0) %>%
+  ungroup() %>%
+  summarise(mean = mean(gaptime),
+            median = median(gaptime))
+
+genericPIV_MEPS_3_simulated %>%
+  filter(sim != 0) %>%
+  ungroup() %>%
+  summarise(mean_gaptime = mean(gaptime),
+            median_gaptime = median(gaptime)) %>%
+  summarise(mean = mean(mean_gaptime),
+            median = median(median_gaptime))
 
 MEPS_PIV_mean_simulated <- MEPS_PIV_mean %>%
   filter(simulation > 0) %>%
