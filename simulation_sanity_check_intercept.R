@@ -24,8 +24,8 @@ hazard_sim <- 1
 n_simulation <- 1000
 
   h_PIV <- basehaz(model_PIV_PWPGT_post, centered = T)
-  h_PIV <- h_PIV %>% 
-    mutate(h2 = hazard*hazard_sim)
+  #h_PIV <- h_PIV %>% 
+  #  mutate(h2 = hazard*hazard_sim)
   
   h_PIV_2 <- h_PIV %>%
     filter(strata == "ncompetitor=1")
@@ -40,63 +40,6 @@ n_simulation <- 1000
     filter(competitor >= 2,
            !is.na(P_g),
            !is.na(P_b))
-  
-  MEPS_PIV_id <- MEPS_PIV_2 %>%
-    distinct(index)
-  
-  genericPIV_MEPS <- genericPIV_postGDUFA %>%
-    inner_join(MEPS_PIV_id, by = "index")
-  
-  genericPIV_MEPS_2 <- genericPIV_MEPS %>%
-    filter(ncompetitor == 1)
-  
-  genericPIV_MEPS_3 <- genericPIV_MEPS %>%
-    filter(ncompetitor == 2)
-  
-  genericPIV_MEPS_2_predicted <- predict(model_PIV_PWPGT_post, genericPIV_MEPS_2, type="risk",se.fit=TRUE, reference = "strata")
-  genericPIV_MEPS_2$predicted <- genericPIV_MEPS_2_predicted$fit
-  genericPIV_MEPS_2$runif <- runif(nrow(genericPIV_MEPS_2), min=0, max=1)
-  genericPIV_MEPS_2$predicted_h <- - (log(genericPIV_MEPS_2$runif) / genericPIV_MEPS_2$predicted)
-  
-  genericPIV_MEPS_2$predicted_t <- sapply(genericPIV_MEPS_2$predicted_h, get_time, data = h_PIV_2)
-  
-  summary(genericPIV_MEPS_2$predicted_t)
-  
-  summary(genericPIV_MEPS_2$gaptime)
-  
-  genericPIV_MEPS_3_predicted <- predict(model_PIV_PWPGT_post, genericPIV_MEPS_3, type="risk",se.fit=TRUE, reference = "strata")
-  genericPIV_MEPS_3$predicted <- genericPIV_MEPS_3_predicted$fit
-  genericPIV_MEPS_3$runif <- runif(nrow(genericPIV_MEPS_3), min=0, max=1)
-  genericPIV_MEPS_3$predicted_h <- - (log(genericPIV_MEPS_3$runif) / genericPIV_MEPS_3$predicted)
-  
-  genericPIV_MEPS_3$predicted_t <- sapply(genericPIV_MEPS_3$predicted_h, get_time, data = h_PIV_3)
-  
-  genericPIV_MEPS %>%
-    group_by(ncompetitor) %>%
-    summarise(mean = mean(gaptime),
-              median = median(gaptime),
-              min = min(gaptime),
-              max = max(gaptime),
-              n = n())
-  
-  genericPIV_postGDUFA %>%
-    group_by(ncompetitor) %>%
-    summarise(mean = mean(gaptime),
-              median = median(gaptime),
-              max = max(gaptime),
-              n = n())
-  
-  summary(genericPIV_MEPS_3$predicted_t)
-  
-  summary(genericPIV_MEPS_3$gaptime)
-  
-  genericPIV_MEPS_2_simulated <- genericPIV_MEPS_2 %>%
-    dplyr::select(index, Appl_No, Product_No, Strength, order, gaptime) %>%
-    mutate(sim = 0)
-  
-  genericPIV_MEPS_3_simulated <- genericPIV_MEPS_3 %>%
-    dplyr::select(index, Appl_No, Product_No, Strength, order, gaptime) %>%
-    mutate(sim = 0)
   
   for (i in 1:n_simulation){
     MEPS_PIV_2 <- MEPS_PIV %>%
@@ -116,20 +59,20 @@ n_simulation <- 1000
     genericPIV_MEPS_3 <- genericPIV_MEPS %>%
       filter(ncompetitor == 2)
     
-    genericPIV_MEPS_2_predicted <- predict(model_PIV_PWPGT_post, genericPIV_MEPS_2, type="risk",se.fit=TRUE, reference = "strata")
+    genericPIV_MEPS_2_predicted <- predict(model_PIV_PWPGT_post, genericPIV_MEPS_2, type="lp",se.fit=TRUE, reference = "strata")
     genericPIV_MEPS_2$predicted <- genericPIV_MEPS_2_predicted$fit
     genericPIV_MEPS_2$runif <- runif(nrow(genericPIV_MEPS_2), min=0, max=1)
-    genericPIV_MEPS_2$predicted_h <- - (log(genericPIV_MEPS_2$runif) / genericPIV_MEPS_2$predicted)
-    genericPIV_MEPS_2$predicted_t <- sapply(genericPIV_MEPS_2$predicted_h, get_time, data = h_PIV_2)
+    genericPIV_MEPS_2$predicted_h <- - (log(genericPIV_MEPS_2$runif) / exp(genericPIV_MEPS_2$predicted + log(hazard_sim)))
+    genericPIV_MEPS_2$predicted_t <- sapply(genericPIV_MEPS_2$predicted_h, get_time_H0, data = h_PIV_2)
     
   
     
-    genericPIV_MEPS_3_predicted <- predict(model_PIV_PWPGT_post, genericPIV_MEPS_3, type="risk",se.fit=TRUE, reference = "strata")
+    genericPIV_MEPS_3_predicted <- predict(model_PIV_PWPGT_post, genericPIV_MEPS_3, type="lp",se.fit=TRUE, reference = "strata")
     genericPIV_MEPS_3$predicted <- genericPIV_MEPS_3_predicted$fit
     genericPIV_MEPS_3$runif <- runif(nrow(genericPIV_MEPS_3), min=0, max=1)
-    genericPIV_MEPS_3$predicted_h <- - (log(genericPIV_MEPS_3$runif) / genericPIV_MEPS_3$predicted)
+    genericPIV_MEPS_3$predicted_h <- - (log(genericPIV_MEPS_3$runif) / exp(genericPIV_MEPS_3$predicted + log(hazard_sim)))
     
-    genericPIV_MEPS_3$predicted_t <- sapply(genericPIV_MEPS_3$predicted_h, get_time, data = h_PIV_3)
+    genericPIV_MEPS_3$predicted_t <- sapply(genericPIV_MEPS_3$predicted_h, get_time_H0, data = h_PIV_3)
     
     genericPIV_MEPS_2 <- genericPIV_MEPS_2 %>%
       dplyr::select(index, Appl_No, Product_No, Strength, order, gaptime, predicted_t)

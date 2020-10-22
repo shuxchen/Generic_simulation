@@ -12,3 +12,16 @@ get_time <- function(x, data){
   return(t1)
 }
 
+get_time_H0 <- function(x, data){
+  t = data$time
+  H = data$hazard
+  
+  if (x < min(H)) {
+    t1 = t[1]
+  } else {
+    t1 = t[max(which(!x < H))]
+  }
+  
+  return(t1)
+}
+
