@@ -8,6 +8,8 @@ load("MEPS_summary_weighted.Rdata")
 
 # With PC
 model_PIV_PWPGT_post <- coxph(Surv(genericPIV_postGDUFA$gaptime_start, genericPIV_postGDUFA$gaptime, entry2) ~ strata(ncompetitor) + route + AG + ETASU + guidance_before + indexyear + cluster(index), method = "breslow", data = genericPIV_postGDUFA)
+#model_PIV_PWPGT_post <- coxph(Surv(genericPIV_postGDUFA$gaptime_start, genericPIV_postGDUFA$gaptime, entry2) ~ strata(ncompetitor) + route + AG + ETASU + guidance_before + indexyear + cluster(index), method = "exact", data = genericPIV_postGDUFA)
+
 summary(model_PIV_PWPGT_post)
 
 h_PIV <- basehaz(model_PIV_PWPGT_post, centered = T)
@@ -29,6 +31,24 @@ p1 <- (ggplot(h_PIV_1_long, aes(x=time, y=value, xend=tend, yend=value, color = 
          geom_segment())  # Horizontal line segments
 p1
 
+h_PIV_1$tend <- c(h_PIV_1$time[2:nrow(h_PIV_1)], NA)
+
+p1 <- (ggplot(h_PIV_1, aes(x=time, y=hazard, xend=tend, yend=hazard)) +
+         geom_vline(aes(xintercept=time), linetype=2, color="grey") +
+         geom_point() +  # Solid points to left
+         geom_point(aes(x=tend, y=hazard), shape=1) +  # Open points to right
+         geom_segment())  # Horizontal line segments
+p1
+
+h_PIV_2 <- h_PIV %>% 
+  filter(strata == "ncompetitor=2")
+h_PIV_2$tend <- c(h_PIV_2$time[2:nrow(h_PIV_2)], NA)
+p2 <- (ggplot(h_PIV_2, aes(x=time, y=hazard, xend=tend, yend=hazard)) +
+         geom_vline(aes(xintercept=time), linetype=2, color="grey") +
+         geom_point() +  # Solid points to left
+         geom_point(aes(x=tend, y=hazard), shape=1) +  # Open points to right
+         geom_segment())  # Horizontal line segments
+p2
 
 # MEPS data (add PIV info; include post-GDUFA only)
 # first fill in missing prices 
@@ -106,11 +126,17 @@ genericnoPIV_MEPS <- genericnoPIV_postGDUFA %>%
   inner_join(MEPS_noPIV_id)
 
 # generate one set of simulated time, for second and third entrants with PC
+#genericPIV_MEPS_2 <- genericPIV_MEPS %>%
+#  filter(order == 2)
+
+#genericPIV_MEPS_3 <- genericPIV_MEPS %>%
+#  filter(order == 3)
+
 genericPIV_MEPS_2 <- genericPIV_MEPS %>%
-  filter(order == 2)
+  filter(order == 2, gaptime > 0.001)
 
 genericPIV_MEPS_3 <- genericPIV_MEPS %>%
-  filter(order == 3)
+  filter(order == 3, gaptime > 0.001)
 
 h_PIV_2 <- h_PIV %>%
   filter(strata == "ncompetitor=1")

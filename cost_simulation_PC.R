@@ -12,6 +12,7 @@ E_diff_975 <- rep(NA, length(hazard_sim))
 E_ratio_mean <- rep(NA, length(hazard_sim))
 E_ratio_025 <- rep(NA, length(hazard_sim))
 E_ratio_975 <- rep(NA, length(hazard_sim))
+E_ratio_median <- rep(NA, length(hazard_sim))
 
 n_simulation = 100
 
@@ -43,24 +44,26 @@ for (j in 1:length(hazard_sim)){
       inner_join(MEPS_PIV_id, by = "index")
     
     genericPIV_MEPS_2 <- genericPIV_MEPS %>%
-      filter(order == 2)
+      filter(ncompetitor == 1,
+             gaptime > 0.001)
     
     genericPIV_MEPS_3 <- genericPIV_MEPS %>%
-      filter(order == 3)
+      filter(ncompetitor == 2,
+             gaptime > 0.001)
     
-    genericPIV_MEPS_2_predicted <- predict(model_PIV_PWPGT_post, genericPIV_MEPS_2, type="risk",se.fit=TRUE, reference = "strata")
+    genericPIV_MEPS_2_predicted <- predict(model_PIV_PWPGT_post, genericPIV_MEPS_2, type="lp",se.fit=TRUE, reference = "strata")
     genericPIV_MEPS_2$predicted <- genericPIV_MEPS_2_predicted$fit
     genericPIV_MEPS_2$runif <- runif(nrow(genericPIV_MEPS_2), min=0, max=1)
-    genericPIV_MEPS_2$predicted_h <- - (genericPIV_MEPS_2$predicted * log(genericPIV_MEPS_2$runif))
+    genericPIV_MEPS_2$predicted_h <- - (log(genericPIV_MEPS_2$runif) / exp(genericPIV_MEPS_2$predicted + log(hazard_sim[i])))
+    genericPIV_MEPS_2$predicted_t <- sapply(genericPIV_MEPS_2$predicted_h, get_time_H0, data = h_PIV_2)
     
-    genericPIV_MEPS_2$predicted_t <- sapply(genericPIV_MEPS_2$predicted_h, get_time, data = h_PIV_2)
     
-    genericPIV_MEPS_3_predicted <- predict(model_PIV_PWPGT_post, genericPIV_MEPS_3, type="risk",se.fit=TRUE, reference = "strata")
+    
+    genericPIV_MEPS_3_predicted <- predict(model_PIV_PWPGT_post, genericPIV_MEPS_3, type="lp",se.fit=TRUE, reference = "strata")
     genericPIV_MEPS_3$predicted <- genericPIV_MEPS_3_predicted$fit
     genericPIV_MEPS_3$runif <- runif(nrow(genericPIV_MEPS_3), min=0, max=1)
-    genericPIV_MEPS_3$predicted_h <- - (genericPIV_MEPS_3$predicted * log(genericPIV_MEPS_3$runif))
-    
-    genericPIV_MEPS_3$predicted_t <- sapply(genericPIV_MEPS_3$predicted_h, get_time, data = h_PIV_3)
+    genericPIV_MEPS_3$predicted_h <- - (log(genericPIV_MEPS_3$runif) / exp(genericPIV_MEPS_3$predicted + log(hazard_sim[i])))
+    genericPIV_MEPS_3$predicted_t <- sapply(genericPIV_MEPS_3$predicted_h, get_time_H0, data = h_PIV_3)
     
     genericPIV_MEPS_2 <- genericPIV_MEPS_2 %>%
       dplyr::select(index, Appl_No, Product_No, Strength, order, gaptime, predicted_t)
@@ -70,6 +73,14 @@ for (j in 1:length(hazard_sim)){
     
     genericPIV_MEPS_simulated <-genericPIV_MEPS_2 %>%
       bind_rows(genericPIV_MEPS_3)
+    
+    genericPIV_MEPS_2_simulated <- genericPIV_MEPS_2 %>%
+      dplyr::select(index, Appl_No, Product_No, Strength, order, gaptime) %>%
+      mutate(sim = 0)
+    
+    genericPIV_MEPS_3_simulated <- genericPIV_MEPS_3 %>%
+      dplyr::select(index, Appl_No, Product_No, Strength, order, gaptime) %>%
+      mutate(sim = 0)
     
     # update new gap time for second and third entrants only (with simulated)
     genericPIV_MEPS <- genericPIV_MEPS %>%
@@ -137,10 +148,18 @@ for (j in 1:length(hazard_sim)){
     
     MEPS_PIV_simulated_v1 <- MEPS_PIV_simulated_v1 %>%
       filter(!is.na(P_g) & !is.na(P_b)) %>% ## comment this if fill in previous years!!!
-      mutate(P_b_simulated = P_b * (1 + 0.01 * competitor_diff),
-             P_g_simulated = P_g * (1 - 0.08 * competitor_diff),
+      mutate(P_b_simulated = P_b * (1 + rnorm(1, 0.0097, 0.005) * competitor_diff),
+             P_g_simulated = P_g * (1 + rnorm(1, -0.077, 0.025) * competitor_diff),
+             N_g_simulated = N_g * (1 + -0.16 * (P_g_simulated - P_g)/P_g), 
              E = P_b * N_b + P_g * N_g,
-             E_simulated = P_b_simulated * N_b + P_g_simulated * N_g)
+             E_simulated = P_b_simulated * (N_b + N_g - N_g_simulated) + P_g_simulated * N_g_simulated)
+    
+    #MEPS_PIV_simulated_v1 <- MEPS_PIV_simulated_v1 %>%
+    #  filter(!is.na(P_g) & !is.na(P_b)) %>% ## comment this if fill in previous years!!!
+    #  mutate(P_b_simulated = P_b * (1 + 0.01 * competitor_diff),
+    #         P_g_simulated = P_g * (1 - 0.08 * competitor_diff),
+    #         E = P_b * N_b + P_g * N_g,
+    #         E_simulated = P_b_simulated * N_b + P_g_simulated * N_g)
     
     E[i] = sum(MEPS_PIV_simulated_v1$E)
     E_simulated[i] = sum(MEPS_PIV_simulated_v1$E_simulated)
@@ -157,11 +176,13 @@ for (j in 1:length(hazard_sim)){
   E_diff_975[j] <- unname(quantile(E_df$E_diff, 0.975))
   
   E_ratio_mean[j] <- mean(E_df$E_ratio)
+  E_ratio_median[j] <- median(E_df$E_ratio)
   E_ratio_025[j] <- unname(quantile(E_df$E_ratio, 0.025))
   E_ratio_975[j] <- unname(quantile(E_df$E_ratio, 0.975))
 }
 
 E_overall <- cbind(data.frame(hazard_sim), data.frame(E_diff_mean), data.frame(E_diff_025), data.frame(E_diff_975), data.frame(E_ratio_mean), data.frame(E_ratio_025), data.frame(E_ratio_975))
 
-E_overall <- cbind(data.frame(hazard_sim), data.frame(E_diff_mean), data.frame(E_ratio_mean))
+E_overall <- cbind(data.frame(hazard_sim), data.frame(E_diff_mean), data.frame(E_ratio_mean), data.frame(E_ratio_median))
 
+E_PC <- E_overall

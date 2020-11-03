@@ -16,8 +16,9 @@ get_time_H0 <- function(x, data){
   t = data$time
   H = data$hazard
   
-  if (x < min(H)) {
-    t1 = t[1]
+  if (x < min(H) | is.na(x)) {
+    #t1 = t[1]
+    t1 = min( t[t!=min(t)] )
   } else {
     t1 = t[max(which(!x < H))]
   }
@@ -25,3 +26,5 @@ get_time_H0 <- function(x, data){
   return(t1)
 }
 
+#install.packages("flexsurv")
+library("flexsurv")

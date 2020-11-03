@@ -21,7 +21,7 @@ test <- genericPIV_postGDUFA %>%
 
 #hazard_sim <- seq(2, 2, 1)
 hazard_sim <- 1
-n_simulation <- 1000
+n_simulation <- 100
 
   h_PIV <- basehaz(model_PIV_PWPGT_post, centered = T)
   #h_PIV <- h_PIV %>% 
@@ -41,6 +41,52 @@ n_simulation <- 1000
            !is.na(P_g),
            !is.na(P_b))
   
+  MEPS_PIV_id <- MEPS_PIV_2 %>%
+    distinct(index)
+  
+  genericPIV_MEPS <- genericPIV_postGDUFA %>%
+    inner_join(MEPS_PIV_id, by = "index")
+  
+  genericPIV_MEPS_2 <- genericPIV_MEPS %>%
+    filter(ncompetitor == 1,
+           gaptime > 0.001)
+  
+  genericPIV_MEPS_3 <- genericPIV_MEPS %>%
+    filter(ncompetitor == 2,
+           gaptime > 0.001)
+  
+  genericPIV_MEPS_2_predicted <- predict(model_PIV_PWPGT_post, genericPIV_MEPS_2, type="lp",se.fit=TRUE, reference = "strata")
+  genericPIV_MEPS_2$predicted <- genericPIV_MEPS_2_predicted$fit
+  genericPIV_MEPS_2$runif <- runif(nrow(genericPIV_MEPS_2), min=0, max=1)
+  genericPIV_MEPS_2$predicted_h <- - (log(genericPIV_MEPS_2$runif) / exp(genericPIV_MEPS_2$predicted + log(hazard_sim)))
+  genericPIV_MEPS_2$predicted_t <- sapply(genericPIV_MEPS_2$predicted_h, get_time_H0, data = h_PIV_2)
+  
+  
+  
+  genericPIV_MEPS_3_predicted <- predict(model_PIV_PWPGT_post, genericPIV_MEPS_3, type="lp",se.fit=TRUE, reference = "strata")
+  genericPIV_MEPS_3$predicted <- genericPIV_MEPS_3_predicted$fit
+  genericPIV_MEPS_3$runif <- runif(nrow(genericPIV_MEPS_3), min=0, max=1)
+  genericPIV_MEPS_3$predicted_h <- - (log(genericPIV_MEPS_3$runif) / exp(genericPIV_MEPS_3$predicted + log(hazard_sim)))
+  
+  genericPIV_MEPS_3$predicted_t <- sapply(genericPIV_MEPS_3$predicted_h, get_time_H0, data = h_PIV_3)
+  
+  genericPIV_MEPS_2 <- genericPIV_MEPS_2 %>%
+    dplyr::select(index, Appl_No, Product_No, Strength, order, gaptime, predicted_t)
+  
+  genericPIV_MEPS_3 <- genericPIV_MEPS_3 %>%
+    dplyr::select(index, Appl_No, Product_No, Strength, order, gaptime, predicted_t)
+  
+  genericPIV_MEPS_simulated <-genericPIV_MEPS_2 %>%
+    bind_rows(genericPIV_MEPS_3)
+  
+  genericPIV_MEPS_2_simulated <- genericPIV_MEPS_2 %>%
+    dplyr::select(index, Appl_No, Product_No, Strength, order, gaptime) %>%
+    mutate(sim = 0)
+  
+  genericPIV_MEPS_3_simulated <- genericPIV_MEPS_3 %>%
+    dplyr::select(index, Appl_No, Product_No, Strength, order, gaptime) %>%
+    mutate(sim = 0)
+  
   for (i in 1:n_simulation){
     MEPS_PIV_2 <- MEPS_PIV %>%
       filter(competitor >= 2,
@@ -54,10 +100,12 @@ n_simulation <- 1000
       inner_join(MEPS_PIV_id, by = "index")
     
     genericPIV_MEPS_2 <- genericPIV_MEPS %>%
-      filter(ncompetitor == 1)
+      filter(ncompetitor == 1,
+             gaptime > 0.001)
     
     genericPIV_MEPS_3 <- genericPIV_MEPS %>%
-      filter(ncompetitor == 2)
+      filter(ncompetitor == 2,
+             gaptime > 0.001)
     
     genericPIV_MEPS_2_predicted <- predict(model_PIV_PWPGT_post, genericPIV_MEPS_2, type="lp",se.fit=TRUE, reference = "strata")
     genericPIV_MEPS_2$predicted <- genericPIV_MEPS_2_predicted$fit
@@ -161,10 +209,11 @@ n_simulation <- 1000
     
     MEPS_PIV_simulated_v1 <- MEPS_PIV_simulated_v1 %>%
       filter(!is.na(P_g) & !is.na(P_b)) %>% ## comment this if fill in previous years!!!
-      mutate(P_b_simulated = P_b * (1 + 0.01 * competitor_diff),
-             P_g_simulated = P_g * (1 - 0.08 * competitor_diff),
+      mutate(P_b_simulated = P_b * (1 + rnorm(1, 0.0097, 0.005) * competitor_diff),
+             P_g_simulated = P_g * (1 + rnorm(1, -0.077, 0.025) * competitor_diff),
+             N_g_simulated = N_g * (1 + -0.16 * (P_g_simulated - P_g)/P_g), 
              E = P_b * N_b + P_g * N_g,
-             E_simulated = P_b_simulated * N_b + P_g_simulated * N_g)
+             E_simulated = P_b_simulated * (N_b + N_g - N_g_simulated) + P_g_simulated * N_g_simulated)
     
     E[i] = sum(MEPS_PIV_simulated_v1$E)
     E_simulated[i] = sum(MEPS_PIV_simulated_v1$E_simulated)
