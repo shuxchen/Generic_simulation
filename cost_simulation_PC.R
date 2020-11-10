@@ -135,7 +135,7 @@ for (j in 1:length(hazard_sim)){
     MEPS_PIV_simulated <- MEPS_PIV_simulated %>%
       filter(year > 2012) %>%
       mutate(year = as.numeric(year),
-             competitor_simulated = competitor_simulated + 1) %>%
+             competitor_simulated = competitor_simulated ) %>%
       as_tibble()
     
     MEPS_PIV_simulated_v1 <- MEPS_PIV %>%
@@ -148,8 +148,12 @@ for (j in 1:length(hazard_sim)){
     
     MEPS_PIV_simulated_v1 <- MEPS_PIV_simulated_v1 %>%
       filter(!is.na(P_g) & !is.na(P_b)) %>% ## comment this if fill in previous years!!!
-      mutate(P_b_simulated = P_b * (1 + rnorm(1, 0.0097, 0.005) * competitor_diff),
-             P_g_simulated = P_g * (1 + rnorm(1, -0.077, 0.025) * competitor_diff),
+      mutate(#branded_change = rnorm(n(), -0.043, 0.011),
+            branded_change = rnorm(n(), 0.0097, 0.005),
+            #generic_change = rnorm(n(), -0.064, 0.01),
+            generic_change = rnorm(n(), -0.080, 0.02),
+            P_b_simulated = P_b * (1 + branded_change * competitor_diff),
+            P_g_simulated = P_g * (1 + generic_change * competitor_diff),
              N_g_simulated = N_g * (1 + -0.16 * (P_g_simulated - P_g)/P_g), 
              E = P_b * N_b + P_g * N_g,
              E_simulated = P_b_simulated * (N_b + N_g - N_g_simulated) + P_g_simulated * N_g_simulated)
@@ -186,3 +190,12 @@ E_overall <- cbind(data.frame(hazard_sim), data.frame(E_diff_mean), data.frame(E
 E_overall <- cbind(data.frame(hazard_sim), data.frame(E_diff_mean), data.frame(E_ratio_mean), data.frame(E_ratio_median))
 
 E_PC <- E_overall
+
+E_PC$E_ratio_mean <- 100*E_PC$E_ratio_mean
+
+ggplot(data=E_PC, aes(x=hazard_sim, y=E_ratio_mean)) +
+  geom_line()+
+  geom_point() +
+  ylim(c(0, 25)) +
+  xlab("Policy shock k") +
+  ylab("Ratio of change in expenditure reduction (%)")

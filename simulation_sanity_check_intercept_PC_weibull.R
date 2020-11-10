@@ -27,7 +27,7 @@ plot(model_PIV_third, type = "cumhaz")
 
 #
 #hazard_sim <- seq(2, 2, 1)
-hazard_sim <- 5
+hazard_sim <- 1
 n_simulation <- 100
 
 E <- rep(NA, n_simulation)
