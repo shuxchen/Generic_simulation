@@ -20,7 +20,7 @@ test <- genericnoPIV_postGDUFA %>%
   dplyr::select(index, order, gaptime, predicted_risk) 
 
 #hazard_sim <- seq(2, 2, 1)
-hazard_sim <- 2
+hazard_sim <- 1
 n_simulation <- 1000
 
 h_noPIV <- basehaz(model_noPIV_PWPGT_post, centered = T)
@@ -52,15 +52,33 @@ genericnoPIV_MEPS <- genericnoPIV_postGDUFA %>%
 
 genericnoPIV_MEPS_1 <- genericnoPIV_MEPS %>%
   filter(ncompetitor == 0,
-         gaptime > 0.001)
+         gaptime > 0.001,
+         entry1 == 1)
 
 genericnoPIV_MEPS_2 <- genericnoPIV_MEPS %>%
   filter(ncompetitor == 1,
-         gaptime > 0.001)
+         gaptime > 0.001,
+         entry1 == 1)
 
 genericnoPIV_MEPS_3 <- genericnoPIV_MEPS %>%
   filter(ncompetitor == 2,
-         gaptime > 0.001)
+         gaptime > 0.001,
+         entry1 == 1)
+
+fit_noPIV_MEPS_1 <- survfit(Surv(gaptime, entry1) ~ 1,
+                            data = genericnoPIV_MEPS_1)
+
+ggsurvplot(fit_noPIV_MEPS_1)
+
+fit_noPIV_MEPS_2 <- survfit(Surv(gaptime, entry1) ~ 1,
+                          data = genericnoPIV_MEPS_2)
+
+ggsurvplot(fit_noPIV_MEPS_2)
+
+fit_noPIV_MEPS_3 <- survfit(Surv(gaptime, entry1) ~ 1,
+                          data = genericnoPIV_MEPS_3)
+
+ggsurvplot(fit_noPIV_MEPS_3)
 
 genericnoPIV_MEPS_1_predicted <- predict(model_noPIV_PWPGT_post, genericnoPIV_MEPS_1, type="risk",se.fit=TRUE, reference = "strata")
 genericnoPIV_MEPS_1$predicted <- genericnoPIV_MEPS_1_predicted$fit
@@ -137,15 +155,18 @@ for (i in 1:n_simulation){
   
   genericnoPIV_MEPS_1 <- genericnoPIV_MEPS %>%
     filter(ncompetitor == 0,
-           gaptime > 0.001)
+           gaptime > 0.001,
+           entry1 == 1)
   
   genericnoPIV_MEPS_2 <- genericnoPIV_MEPS %>%
     filter(ncompetitor == 1,
-           gaptime > 0.001)
+           gaptime > 0.001,
+           entry1 == 1)
   
   genericnoPIV_MEPS_3 <- genericnoPIV_MEPS %>%
     filter(ncompetitor == 2,
-           gaptime > 0.001)
+           gaptime > 0.001,
+           entry1 == 1)
   
   enericnoPIV_MEPS_1_predicted <- predict(model_noPIV_PWPGT_post, genericnoPIV_MEPS_1, type="risk",se.fit=TRUE, reference = "strata")
   genericnoPIV_MEPS_1$predicted <- genericnoPIV_MEPS_1_predicted$fit
@@ -242,3 +263,121 @@ genericnoPIV_MEPS_3_simulated %>%
             median_gaptime = median(gaptime)) %>%
   summarise(mean = mean(mean_gaptime),
             median = median(median_gaptime))
+
+
+# plot simulated survival
+
+genericnoPIV_MEPS_1_simulated <- genericnoPIV_MEPS_1_simulated %>%
+  mutate(entry1 = 1)
+
+genericnoPIV_MEPS_1_simulated <- genericnoPIV_MEPS_1_simulated %>%
+  group_by(sim) %>%
+  mutate(sim_rank = rank(gaptime, ties.method = "random"))
+
+genericnoPIV_MEPS_1_simulated_sim025 <- genericnoPIV_MEPS_1_simulated %>%
+  filter(sim > 0) %>%
+  group_by(sim_rank) %>%
+  summarise(gaptime = quantile(gaptime, 0.025)) %>%
+  mutate(group = "2.5p") %>%
+  dplyr::select(group, gaptime)
+
+genericnoPIV_MEPS_1_simulated_sim975 <- genericnoPIV_MEPS_1_simulated %>%
+  filter(sim > 0) %>%
+  group_by(sim_rank) %>%
+  summarise(gaptime = quantile(gaptime, 0.975)) %>%
+  mutate(group = "97.5p") %>%
+  dplyr::select(group, gaptime)
+
+genericnoPIV_MEPS_1_simulated_origin <- genericnoPIV_MEPS_1_simulated %>%
+  filter(sim == 0) %>%
+  ungroup() %>%
+  mutate(group = "data") %>%
+  dplyr::select(group, gaptime)
+
+genericnoPIV_MEPS_1_simulated_95ci <- genericnoPIV_MEPS_1_simulated_origin %>%
+  rbind(genericnoPIV_MEPS_1_simulated_sim025) %>%
+  rbind(genericnoPIV_MEPS_1_simulated_sim975) %>%
+  mutate(entry1 = 1)
+
+fit_genericnoPIV_MEPS_1_simulated_95ci <- survfit(Surv(gaptime, entry1) ~ group,
+                                                  data = genericnoPIV_MEPS_1_simulated_95ci)
+
+ggsurvplot(fit_genericnoPIV_MEPS_1_simulated_95ci)
+
+
+
+genericnoPIV_MEPS_2_simulated <- genericnoPIV_MEPS_2_simulated %>%
+  mutate(entry1 = 1)
+
+genericnoPIV_MEPS_2_simulated <- genericnoPIV_MEPS_2_simulated %>%
+  group_by(sim) %>%
+  mutate(sim_rank = rank(gaptime, ties.method = "random"))
+
+genericnoPIV_MEPS_2_simulated_sim025 <- genericnoPIV_MEPS_2_simulated %>%
+  filter(sim > 0) %>%
+  group_by(sim_rank) %>%
+  summarise(gaptime = quantile(gaptime, 0.025)) %>%
+  mutate(group = "2.5p") %>%
+  dplyr::select(group, gaptime)
+
+genericnoPIV_MEPS_2_simulated_sim975 <- genericnoPIV_MEPS_2_simulated %>%
+  filter(sim > 0) %>%
+  group_by(sim_rank) %>%
+  summarise(gaptime = quantile(gaptime, 0.975)) %>%
+  mutate(group = "97.5p") %>%
+  dplyr::select(group, gaptime)
+
+genericnoPIV_MEPS_2_simulated_origin <- genericnoPIV_MEPS_2_simulated %>%
+  filter(sim == 0) %>%
+  ungroup() %>%
+  mutate(group = "data") %>%
+  dplyr::select(group, gaptime)
+
+genericnoPIV_MEPS_2_simulated_95ci <- genericnoPIV_MEPS_2_simulated_origin %>%
+  rbind(genericnoPIV_MEPS_2_simulated_sim025) %>%
+  rbind(genericnoPIV_MEPS_2_simulated_sim975) %>%
+  mutate(entry1 = 1)
+
+fit_genericnoPIV_MEPS_2_simulated_95ci <- survfit(Surv(gaptime, entry1) ~ group,
+                                                data = genericnoPIV_MEPS_2_simulated_95ci)
+
+ggsurvplot(fit_genericnoPIV_MEPS_2_simulated_95ci)
+
+
+genericnoPIV_MEPS_3_simulated <- genericnoPIV_MEPS_3_simulated %>%
+  mutate(entry1 = 1)
+
+genericnoPIV_MEPS_3_simulated <- genericnoPIV_MEPS_3_simulated %>%
+  group_by(sim) %>%
+  mutate(sim_rank = rank(gaptime, ties.method = "random"))
+
+genericnoPIV_MEPS_3_simulated_sim025 <- genericnoPIV_MEPS_3_simulated %>%
+  filter(sim > 0) %>%
+  group_by(sim_rank) %>%
+  summarise(gaptime = quantile(gaptime, 0.025)) %>%
+  mutate(group = "2.5p") %>%
+  dplyr::select(group, gaptime)
+
+genericnoPIV_MEPS_3_simulated_sim975 <- genericnoPIV_MEPS_3_simulated %>%
+  filter(sim > 0) %>%
+  group_by(sim_rank) %>%
+  summarise(gaptime = quantile(gaptime, 0.975)) %>%
+  mutate(group = "97.5p") %>%
+  dplyr::select(group, gaptime)
+
+genericnoPIV_MEPS_3_simulated_origin <- genericnoPIV_MEPS_3_simulated %>%
+  filter(sim == 0) %>%
+  ungroup() %>%
+  mutate(group = "data") %>%
+  dplyr::select(group, gaptime)
+
+genericnoPIV_MEPS_3_simulated_95ci <- genericnoPIV_MEPS_3_simulated_origin %>%
+  rbind(genericnoPIV_MEPS_3_simulated_sim025) %>%
+  rbind(genericnoPIV_MEPS_3_simulated_sim975) %>%
+  mutate(entry1 = 1)
+
+fit_genericnoPIV_MEPS_3_simulated_95ci <- survfit(Surv(gaptime, entry1) ~ group,
+                                                  data = genericnoPIV_MEPS_3_simulated_95ci)
+
+ggsurvplot(fit_genericnoPIV_MEPS_3_simulated_95ci)
+

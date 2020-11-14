@@ -28,3 +28,4 @@ get_time_H0 <- function(x, data){
 
 #install.packages("flexsurv")
 library("flexsurv")
+library(survminer)

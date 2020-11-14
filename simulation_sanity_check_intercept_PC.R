@@ -55,6 +55,16 @@ n_simulation <- 100
     filter(ncompetitor == 2,
            gaptime > 0.001)
   
+  fit_PIV_MEPS_2 <- survfit(Surv(gaptime, entry2) ~ 1,
+                 data = genericPIV_MEPS_2)
+  
+  ggsurvplot(fit_PIV_MEPS_2)
+  
+  fit_PIV_MEPS_3 <- survfit(Surv(gaptime, entry2) ~ 1,
+                            data = genericPIV_MEPS_3)
+  
+  ggsurvplot(fit_PIV_MEPS_3)
+  
   genericPIV_MEPS_2_predicted <- predict(model_PIV_PWPGT_post, genericPIV_MEPS_2, type="lp",se.fit=TRUE, reference = "strata")
   genericPIV_MEPS_2$predicted <- genericPIV_MEPS_2_predicted$fit
   genericPIV_MEPS_2$runif <- runif(nrow(genericPIV_MEPS_2), min=0, max=1)
@@ -274,5 +284,122 @@ MEPS_PIV_mean_comparison <- MEPS_PIV_mean_original %>%
          mean_competitor_simulated = mean_competitor) %>%
   dplyr::select(t_LOE, mean_competitor_original, mean_competitor_simulated, mean_P_b_original, mean_P_b_simulated, mean_P_g_original, mean_P_g_simulated)
 
-#rerun for different hazard
-#mean for time to entry for different orders make more sense 
+
+# plot simulated survival
+genericPIV_MEPS_2_simulated <- genericPIV_MEPS_2_simulated %>%
+  mutate(entry2 = 1)
+fit_genericPIV_MEPS_2_simulated <- survfit(Surv(gaptime, entry2) ~ sim,
+                          data = genericPIV_MEPS_2_simulated)
+
+#ggsurvplot(fit_genericPIV_MEPS_2_simulated)
+
+genericPIV_MEPS_2_simulated <- genericPIV_MEPS_2_simulated %>%
+  group_by(sim) %>%
+  mutate(sim_rank = rank(gaptime, ties.method = "random"))
+
+genericPIV_MEPS_2_simulated_sim025 <- genericPIV_MEPS_2_simulated %>%
+  filter(sim > 0) %>%
+  group_by(sim_rank) %>%
+  summarise(gaptime = quantile(gaptime, 0.025)) %>%
+  mutate(group = "2.5p") %>%
+  dplyr::select(group, gaptime)
+
+genericPIV_MEPS_2_simulated_sim975 <- genericPIV_MEPS_2_simulated %>%
+  filter(sim > 0) %>%
+  group_by(sim_rank) %>%
+  summarise(gaptime = quantile(gaptime, 0.975)) %>%
+  mutate(group = "97.5p") %>%
+  dplyr::select(group, gaptime)
+
+genericPIV_MEPS_2_simulated_origin <- genericPIV_MEPS_2_simulated %>%
+  filter(sim == 0) %>%
+  ungroup() %>%
+  mutate(group = "data") %>%
+  dplyr::select(group, gaptime)
+
+## use pencentiles for each event:
+genericPIV_MEPS_2_simulated_sim025 <- genericPIV_MEPS_2_simulated %>%
+  filter(sim > 0) %>%
+  group_by(index) %>%
+  summarise(gaptime = quantile(gaptime, 0.025)) %>%
+  mutate(group = "2.5p") %>%
+  dplyr::select(group, gaptime)
+
+genericPIV_MEPS_2_simulated_sim975 <- genericPIV_MEPS_2_simulated %>%
+  filter(sim > 0) %>%
+  group_by(index) %>%
+  summarise(gaptime = quantile(gaptime, 0.975)) %>%
+  mutate(group = "97.5p") %>%
+  dplyr::select(group, gaptime)
+
+genericPIV_MEPS_2_simulated_origin <- genericPIV_MEPS_2_simulated %>%
+  filter(sim == 0) %>%
+  ungroup() %>%
+  mutate(group = "data") %>%
+  dplyr::select(group, gaptime)
+
+genericPIV_MEPS_2_simulated_95ci <- genericPIV_MEPS_2_simulated_origin %>%
+  rbind(genericPIV_MEPS_2_simulated_sim025) %>%
+  rbind(genericPIV_MEPS_2_simulated_sim975) %>%
+  mutate(entry2 = 1)
+
+fit_genericPIV_MEPS_2_simulated_95ci <- survfit(Surv(gaptime, entry2) ~ group,
+                                           data = genericPIV_MEPS_2_simulated_95ci)
+
+ggsurvplot(fit_genericPIV_MEPS_2_simulated_95ci)
+
+genericPIV_MEPS_3_simulated <- genericPIV_MEPS_3_simulated %>%
+  group_by(sim) %>%
+  mutate(sim_rank = rank(gaptime, ties.method = "random"))
+
+genericPIV_MEPS_3_simulated_sim025 <- genericPIV_MEPS_3_simulated %>%
+  filter(sim > 0) %>%
+  group_by(sim_rank) %>%
+  summarise(gaptime = quantile(gaptime, 0.025)) %>%
+  mutate(group = "2.5p") %>%
+  dplyr::select(group, gaptime)
+
+genericPIV_MEPS_3_simulated_sim975 <- genericPIV_MEPS_3_simulated %>%
+  filter(sim > 0) %>%
+  group_by(sim_rank) %>%
+  summarise(gaptime = quantile(gaptime, 0.975)) %>%
+  mutate(group = "97.5p") %>%
+  dplyr::select(group, gaptime)
+
+genericPIV_MEPS_3_simulated_origin <- genericPIV_MEPS_3_simulated %>%
+  filter(sim == 0) %>%
+  ungroup() %>%
+  mutate(group = "data") %>%
+  dplyr::select(group, gaptime)
+
+## use pencentiles for each event:
+genericPIV_MEPS_3_simulated_sim025 <- genericPIV_MEPS_3_simulated %>%
+  filter(sim > 0) %>%
+  group_by(index) %>%
+  summarise(gaptime = quantile(gaptime, 0.025)) %>%
+  mutate(group = "2.5p") %>%
+  dplyr::select(group, gaptime)
+
+genericPIV_MEPS_3_simulated_sim975 <- genericPIV_MEPS_3_simulated %>%
+  filter(sim > 0) %>%
+  group_by(index) %>%
+  summarise(gaptime = quantile(gaptime, 0.975)) %>%
+  mutate(group = "97.5p") %>%
+  dplyr::select(group, gaptime)
+
+genericPIV_MEPS_3_simulated_origin <- genericPIV_MEPS_3_simulated %>%
+  filter(sim == 0) %>%
+  ungroup() %>%
+  mutate(group = "data") %>%
+  dplyr::select(group, gaptime)
+
+genericPIV_MEPS_3_simulated_95ci <- genericPIV_MEPS_3_simulated_origin %>%
+  rbind(genericPIV_MEPS_3_simulated_sim025) %>%
+  rbind(genericPIV_MEPS_3_simulated_sim975) %>%
+  mutate(entry3 = 1)
+
+fit_genericPIV_MEPS_3_simulated_95ci <- survfit(Surv(gaptime, entry3) ~ group,
+                                                data = genericPIV_MEPS_3_simulated_95ci)
+
+ggsurvplot(fit_genericPIV_MEPS_3_simulated_95ci)
+

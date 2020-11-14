@@ -10,15 +10,18 @@ MEPS_noPIV_mean <- MEPS_noPIV %>%
 
 genericnoPIV_postGDUFA_first <- genericnoPIV_postGDUFA %>%
   filter(ncompetitor == 0,
-         gaptime > 0.001)
+         gaptime > 0.001,
+         entry1 == 1)
 
 genericnoPIV_postGDUFA_second <- genericnoPIV_postGDUFA %>%
   filter(ncompetitor == 1,
-         gaptime > 0.001)
+         gaptime > 0.001,
+         entry1 == 1)
 
 genericnoPIV_postGDUFA_third <- genericnoPIV_postGDUFA %>%
   filter(ncompetitor == 2,
-         gaptime > 0.001)
+         gaptime > 0.001,
+         entry1 == 1)
 
 model_noPIV_first <- flexsurvreg(Surv(gaptime, entry1) ~ AG + guidance_before + indexyear, data = genericnoPIV_postGDUFA_first, dist = "weibullPH")
 plot(model_noPIV_first, type = "cumhaz")
@@ -28,7 +31,7 @@ model_noPIV_second <- flexsurvreg(Surv(gaptime, entry1) ~ AG + guidance_before +
 model_noPIV_third <- flexsurvreg(Surv(gaptime, entry1) ~ AG + guidance_before + indexyear, data = genericnoPIV_postGDUFA_third, dist = "weibullPH")
 
 #hazard_sim <- seq(2, 2, 1)
-hazard_sim <- 5
+hazard_sim <- 1
 n_simulation <- 100
 
 
@@ -49,15 +52,18 @@ genericnoPIV_MEPS <- genericnoPIV_postGDUFA %>%
 
 genericnoPIV_MEPS_1 <- genericnoPIV_MEPS %>%
   filter(ncompetitor == 0,
-         gaptime > 0.001)
+         gaptime > 0.001,
+         entry1 == 1)
 
 genericnoPIV_MEPS_2 <- genericnoPIV_MEPS %>%
   filter(ncompetitor == 1,
-         gaptime > 0.001)
+         gaptime > 0.001,
+         entry1 == 1)
 
 genericnoPIV_MEPS_3 <- genericnoPIV_MEPS %>%
   filter(ncompetitor == 2,
-         gaptime > 0.001)
+         gaptime > 0.001,
+         entry1 == 1)
 
 genericnoPIV_MEPS_1$predicted <- genericnoPIV_MEPS_1$AG*model_noPIV_first$res[3,"est"] + genericnoPIV_MEPS_1$guidance_before*model_noPIV_first$res[4,"est"] + genericnoPIV_MEPS_1$indexyear*model_noPIV_first$res[5,"est"]
 genericnoPIV_MEPS_1$runif <- runif(nrow(genericnoPIV_MEPS_1), min=0, max=1)
