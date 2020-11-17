@@ -148,10 +148,10 @@ for (j in 1:length(hazard_sim)){
     
     MEPS_PIV_simulated_v1 <- MEPS_PIV_simulated_v1 %>%
       filter(!is.na(P_g) & !is.na(P_b)) %>% ## comment this if fill in previous years!!!
-      mutate(#branded_change = rnorm(n(), -0.043, 0.011),
-            branded_change = rnorm(n(), 0.0097, 0.005),
-            #generic_change = rnorm(n(), -0.064, 0.01),
-            generic_change = rnorm(n(), -0.080, 0.02),
+      mutate(branded_change = rnorm(n(), -0.043, 0.011),
+            #branded_change = rnorm(n(), 0.0097, 0.005),
+            generic_change = rnorm(n(), -0.064, 0.01),
+            #generic_change = rnorm(n(), -0.080, 0.02),
             P_b_simulated = P_b * (1 + branded_change * competitor_diff),
             P_g_simulated = P_g * (1 + generic_change * competitor_diff),
              N_g_simulated = N_g * (1 + -0.16 * (P_g_simulated - P_g)/P_g), 
@@ -187,15 +187,36 @@ for (j in 1:length(hazard_sim)){
 
 E_overall <- cbind(data.frame(hazard_sim), data.frame(E_diff_mean), data.frame(E_diff_025), data.frame(E_diff_975), data.frame(E_ratio_mean), data.frame(E_ratio_025), data.frame(E_ratio_975))
 
-E_overall <- cbind(data.frame(hazard_sim), data.frame(E_diff_mean), data.frame(E_ratio_mean), data.frame(E_ratio_median))
+#E_overall <- cbind(data.frame(hazard_sim), data.frame(E_diff_mean), data.frame(E_ratio_mean), data.frame(E_ratio_median))
 
 E_PC <- E_overall
 
 E_PC$E_ratio_mean <- 100*E_PC$E_ratio_mean
+E_PC$E_ratio_025 <- 100*E_PC$E_ratio_025
+E_PC$E_ratio_975 <- 100*E_PC$E_ratio_975
 
-ggplot(data=E_PC, aes(x=hazard_sim, y=E_ratio_mean)) +
+E_PC_mean <- E_PC %>%
+  dplyr::select(hazard_sim, E_ratio_mean) %>%
+  rename(E_ratio = E_ratio_mean) %>%
+  mutate(group = "Mean")
+
+E_PC_025 <- E_PC %>%
+  dplyr::select(hazard_sim, E_ratio_025) %>%
+  rename(E_ratio = E_ratio_025) %>%
+  mutate(group = "Lower bound")
+
+E_PC_975 <- E_PC %>%
+  dplyr::select(hazard_sim, E_ratio_975) %>%
+  rename(E_ratio = E_ratio_975) %>%
+  mutate(group = "Upper bound")
+
+E_PC <- E_PC_mean %>%
+  rbind(E_PC_025) %>%
+  rbind(E_PC_975)
+
+ggplot(data=E_PC, aes(x=hazard_sim, y=E_ratio, group = group, color = group)) +
   geom_line()+
   geom_point() +
-  ylim(c(0, 25)) +
+  ylim(c(-1, 25)) +
   xlab("Policy shock k") +
   ylab("Ratio of change in expenditure reduction (%)")
