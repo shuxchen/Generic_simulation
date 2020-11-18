@@ -163,10 +163,10 @@ for (j in 1:length(hazard_sim)){
     
     MEPS_PIV_simulated_v1 <- MEPS_PIV_simulated_v1 %>%
       filter(!is.na(P_g) & !is.na(P_b)) %>% ## comment this if fill in previous years!!!
-      mutate(branded_change = rnorm(n(), -0.043, 0.011),
-             #branded_change = rnorm(n(), 0.0097, 0.005),
-             generic_change = rnorm(n(), -0.064, 0.01),
-             #generic_change = rnorm(n(), -0.080, 0.02),
+      mutate(#branded_change = rnorm(n(), -0.043, 0.011),
+             branded_change = rnorm(n(), 0.0097, 0.005),
+             #generic_change = rnorm(n(), -0.064, 0.01),
+             generic_change = rnorm(n(), -0.080, 0.02),
              P_b_simulated = P_b * (1 + branded_change * competitor_diff),
              P_g_simulated = P_g * (1 + generic_change * competitor_diff),
              N_g_simulated = N_g * (1 + -0.16 * (P_g_simulated - P_g)/P_g), 
@@ -343,6 +343,17 @@ E_both$E_ratio_mean <- 100*E_both$E_ratio_mean
 E_both$E_ratio_025 <- 100*E_both$E_ratio_025
 E_both$E_ratio_975 <- 100*E_both$E_ratio_975
 
+ggplot(data=E_both, aes(x=hazard_sim, y=E_ratio_mean)) +
+  geom_line(color = "#9966FF")+
+  geom_point(color = "#9966FF") +
+  geom_ribbon(aes(ymin=E_both$E_ratio_025, ymax=E_both$E_ratio_975), linetype=2, alpha=0.25, fill="blue") + 
+  scale_colour_manual("",values="blue")+
+  scale_fill_manual("",values="#CCCCFF") +
+  ylim(c(-1, 25)) +
+  xlab("Policy shock k") +
+  ylab("Change in expenditure reduction (%)") 
+
+
 E_both_mean <- E_both %>%
   dplyr::select(hazard_sim, E_ratio_mean) %>%
   rename(E_ratio = E_ratio_mean) %>%
@@ -365,6 +376,6 @@ E_both <- E_both_mean %>%
 ggplot(data=E_both, aes(x=hazard_sim, y=E_ratio, group = group, color = group)) +
   geom_line()+
   geom_point() +
-  ylim(c(0, 25)) +
+  ylim(c(-1, 25)) +
   xlab("Policy shock k") +
-  ylab("Ratio of change in expenditure reduction (%)")
+  ylab("Change in expenditure reduction (%)")
