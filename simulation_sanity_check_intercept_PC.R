@@ -20,8 +20,8 @@ test <- genericPIV_postGDUFA %>%
   dplyr::select(index, order, gaptime, predicted_risk) 
 
 #hazard_sim <- seq(2, 2, 1)
-hazard_sim <- 1
-n_simulation <- 100
+hazard_sim <- 0.1
+n_simulation <- 1
 
   h_PIV <- basehaz(model_PIV_PWPGT_post, centered = T)
   #h_PIV <- h_PIV %>% 
