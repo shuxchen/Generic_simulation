@@ -6,7 +6,7 @@ model_PIV_PWPGT_post <- coxph(Surv(genericPIV_postGDUFA$gaptime_start, genericPI
 summary(model_PIV_PWPGT_post)
 
 #hazard_sim <- seq(1, 5, 0.1)
-hazard_sim <- seq(0.1, 2, 0.1)
+hazard_sim <- seq(0.1, 5, 0.2)
 E_diff_mean <- rep(NA, length(hazard_sim))
 E_diff_025 <- rep(NA, length(hazard_sim))
 E_diff_975 <- rep(NA, length(hazard_sim))
@@ -15,7 +15,7 @@ E_ratio_025 <- rep(NA, length(hazard_sim))
 E_ratio_975 <- rep(NA, length(hazard_sim))
 E_ratio_median <- rep(NA, length(hazard_sim))
 
-n_simulation = 10
+n_simulation = 500
 
 for (j in 1:length(hazard_sim)){
   
@@ -58,6 +58,7 @@ for (j in 1:length(hazard_sim)){
       distinct(index)
     
     genericPIV_MEPS <- genericPIV_postGDUFA %>%
+      filter(entry2 == 1) %>%
       inner_join(MEPS_PIV_id, by = "index")
     
     genericPIV_MEPS_2 <- genericPIV_MEPS %>%
@@ -142,7 +143,7 @@ for (j in 1:length(hazard_sim)){
     MEPS_PIV_simulated <- MEPS_PIV_simulated %>%
       filter(year > 2012) %>%
       mutate(year = as.numeric(year),
-             competitor_simulated = competitor_simulated ) %>%
+             competitor_simulated = competitor_simulated + 1) %>%
       as_tibble()
     
     MEPS_PIV_simulated_v1 <- MEPS_PIV %>%
@@ -151,14 +152,17 @@ for (j in 1:length(hazard_sim)){
     # keep drugs when simulated result is available
     MEPS_PIV_simulated_v1 <- MEPS_PIV_simulated_v1 %>%
       filter(!is.na(competitor_simulated)) %>%
-      mutate(competitor_diff = ifelse(year == 2017, 0, competitor_simulated - competitor))
+      #mutate(competitor_diff = ifelse(year == 2017, 0, competitor_simulated - competitor))
+      mutate(competitor_diff = competitor_simulated - competitor)
     
     MEPS_PIV_simulated_v1 <- MEPS_PIV_simulated_v1 %>%
       filter(!is.na(P_g) & !is.na(P_b)) %>% ## comment this if fill in previous years!!!
-      mutate(branded_change = rnorm(n(), exp(-0.04370)-1, exp(0.01100) - 1),
+      mutate(#branded_change = rnorm(n(), exp(-0.04370)-1, exp(0.01100) - 1),
              #branded_change = rnorm(n(), exp(0.00099)-1, exp(0.00458) - 1),
-             generic_change = rnorm(n(), exp(-0.06644)-1, exp(0.01007) - 1),
+             branded_change = rnorm(n(), exp(-0.02874)-1, exp(0.00970) - 1),
+             #generic_change = rnorm(n(), exp(-0.06644)-1, exp(0.01007) - 1),
              #generic_change = rnorm(n(), exp(-0.06929)-1, exp(0.00897) - 1),
+             generic_change = rnorm(n(), exp(-0.06728)-1, exp(0.01010) - 1),
              P_b_simulated = P_b * (1 + branded_change * competitor_diff),
              P_g_simulated = P_g * (1 + generic_change * competitor_diff),
              N_g_simulated = N_g * (1 + -0.16 * (P_g_simulated - P_g)/P_g), 
@@ -176,6 +180,7 @@ for (j in 1:length(hazard_sim)){
       distinct(index)
     
     genericnoPIV_MEPS <- genericnoPIV_postGDUFA %>%
+      filter(entry1 == 1) %>%
       inner_join(MEPS_noPIV_id, by = "index")
     
     genericnoPIV_MEPS_1 <- genericnoPIV_MEPS %>%
@@ -288,14 +293,17 @@ for (j in 1:length(hazard_sim)){
     # keep drugs when simulated result is available
     MEPS_noPIV_simulated_v1 <- MEPS_noPIV_simulated_v1 %>%
       filter(!is.na(competitor_simulated)) %>%
-      mutate(competitor_diff = ifelse(year == 2017, 0, competitor_simulated - competitor))
-    
+      #mutate(competitor_diff = ifelse(year == 2017, 0, competitor_simulated - competitor))
+      mutate(competitor_diff = competitor_simulated - competitor)
+
     MEPS_noPIV_simulated_v1 <- MEPS_noPIV_simulated_v1 %>%
       filter(!is.na(P_g) & !is.na(P_b)) %>% ## comment this if fill in previous years!!!
-      mutate(branded_change = rnorm(n(), exp(-0.04370)-1, exp(0.01100) - 1),
+      mutate(#branded_change = rnorm(n(), exp(-0.04370)-1, exp(0.01100) - 1),
         #branded_change = rnorm(n(), exp(0.00099)-1, exp(0.00458) - 1),
-        generic_change = rnorm(n(), exp(-0.06644)-1, exp(0.01007) - 1),
+        branded_change = rnorm(n(), exp(-0.02874)-1, exp(0.00970) - 1),
+        #generic_change = rnorm(n(), exp(-0.06644)-1, exp(0.01007) - 1),
         #generic_change = rnorm(n(), exp(-0.06929)-1, exp(0.00897) - 1),
+        generic_change = rnorm(n(), exp(-0.06728)-1, exp(0.01010) - 1),
         P_b_simulated = P_b * (1 + branded_change * competitor_diff),
         P_g_simulated = P_g * (1 + generic_change * competitor_diff),
         N_g_simulated = N_g * (1 + -0.16 * (P_g_simulated - P_g)/P_g), 
@@ -343,7 +351,7 @@ ggplot(data=E_both, aes(x=hazard_sim, y=E_ratio_mean, group = 1)) +
   geom_ribbon(aes(ymin=E_both$E_ratio_025, ymax=E_both$E_ratio_975), linetype=2, alpha=0.25, fill="blue") + 
   scale_colour_manual("",values="blue")+
   scale_fill_manual("",values="#CCCCFF") +
-  ylim(c(-25, 25)) +
+  ylim(c(-10, 25)) +
   xlab("Policy shock k") +
   ylab("Change in expenditure reduction (%)") 
 
